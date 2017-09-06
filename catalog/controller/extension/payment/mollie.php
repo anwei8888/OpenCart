@@ -47,7 +47,7 @@
  */
 require_once(dirname(DIR_SYSTEM) . "/catalog/controller/extension/payment/mollie/helper.php");
 
-class ControllerExtensionPaymentMollieBase extends Controller
+class ControllerExtensionPaymentMollie extends Controller
 {
 	// Current module name - should be overwritten by subclass using one of the values below.
 	const MODULE_NAME = null;
@@ -72,20 +72,6 @@ class ControllerExtensionPaymentMollieBase extends Controller
 		$log = new Log('Mollie.log');
 		$log->write($line);
 		if ($alsoEcho) echo $line;
-	}
-
-	/**
-	 * @return ModelExtensionPaymentMollieBase
-	 */
-	protected function getModuleModel()
-	{
-		$model_name = "model_extension_payment_mollie_" . static::MODULE_NAME;
-
-		if (!isset($this->$model_name)) {
-			$this->load->model("extension/payment/mollie_" . static::MODULE_NAME);
-		}
-
-		return $this->$model_name;
 	}
 
 	/**
@@ -156,8 +142,8 @@ class ControllerExtensionPaymentMollieBase extends Controller
 
 		// Load essentials
 		$this->load->language("extension/payment/mollie");
+		$this->load->model("extension/payment/mollie");
 
-		$model = $this->getModuleModel();
 		$order_id = $this->getOrderID();
 		$order = $this->getOpenCartOrder($order_id);
 
@@ -210,7 +196,7 @@ class ControllerExtensionPaymentMollieBase extends Controller
 			$this->addOrderHistory($order, $this->config->get("payment_mollie_ideal_pending_status_id"), $this->language->get("text_redirected"), false);
 		}
 
-		$model->setPayment($order['order_id'], $payment->id);
+		$this->model_extension_payment_mollie->setPayment($order['order_id'], $payment->id);
 
 		// Redirect to payment gateway.
 		$this->redirect($payment->links->paymentUrl);
@@ -244,7 +230,7 @@ class ControllerExtensionPaymentMollieBase extends Controller
 
 		// Load essentials
 		$this->load->model("checkout/order");
-		$this->getModuleModel();
+		$this->load->model("extension/payment/mollie");
 		$this->load->language("extension/payment/mollie");
 
 		//Get order_id of this transaction from db
@@ -379,12 +365,10 @@ class ControllerExtensionPaymentMollieBase extends Controller
 
 		// Load required translations.
 		$this->load->language("extension/payment/mollie");
-
-		// Double-check whether or not the status of the order is correct.
-		$model = $this->getModuleModel();
+		$this->load->model("extension/payment/mollie");
 
 		$paid_status_id = intval($this->config->get("mollie_ideal_processing_status_id"));
-		$payment_id = $model->getPaymentID($order['order_id']);
+		$payment_id = $this->model_extension_payment_mollie->getPaymentID($order['order_id']);
 
 		if ($payment_id === false) {
 			$this->writeToMollieLog("Error getting payment id for order " . $order['order_id']);

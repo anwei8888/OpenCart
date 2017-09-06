@@ -44,25 +44,10 @@
  */
 require_once(dirname(DIR_SYSTEM) . "/catalog/controller/extension/payment/mollie/helper.php");
 
-class ControllerExtensionPaymentMollieBase extends Controller
+class ControllerExtensionPaymentMollie extends Controller
 {
-	// Current module name - should be overwritten by subclass using one of the MollieHelper::MODULE_NAME_* values.
-	const MODULE_NAME = NULL;
-
-	// Initialize var(s)
 	protected $error = array();
-
-	// Holds multistore configs
 	protected $data = array();
-
-	/**
-	 * @param int $store The Store ID
-	 * @return Mollie_API_Client
-	 */
-	protected function getAPIClient ($store = 0)
-	{
-		return MollieHelper::getAPIClientAdmin($this->data['stores'][$store]);
-	}
 
 	/**
 	 * This method is executed by OpenCart when the Payment module is installed from the admin. It will create the
@@ -70,46 +55,29 @@ class ControllerExtensionPaymentMollieBase extends Controller
 	 *
 	 * @return void
 	 */
-	public function install ()
+	public function install()
 	{
-		$this->db->query(
-			sprintf(
-				"CREATE TABLE IF NOT EXISTS `%smollie_payments` (
-					`order_id` int(11) unsigned NOT NULL,
-					`method` enum('idl') NOT NULL DEFAULT 'idl',
-					`transaction_id` varchar(32) NOT NULL,
-					`bank_account` varchar(15) NOT NULL,
-					`bank_status` varchar(20) NOT NULL,
-					PRIMARY KEY (`order_id`),
-					UNIQUE KEY `transaction_id` (`transaction_id`)
-				) ENGINE=InnoDB DEFAULT CHARSET=utf8",
-				DB_PREFIX
-			));
+		$this->load->model("setting/setting");
 
-		// Just install all modules while we're at it.
-		$this->installAllModules();
-	}
+		$this->db->query("
+CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "mollie_payments` (
+	`order_id` int(11) unsigned NOT NULL,
+	`method` enum('idl') NOT NULL DEFAULT 'idl',
+	`transaction_id` varchar(32) NOT NULL,
+	`bank_account` varchar(15) NOT NULL,
+	`bank_status` varchar(20) NOT NULL,
+	PRIMARY KEY (`order_id`),
+	UNIQUE KEY `transaction_id` (`transaction_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+		");
 
-	/**
-	 * Trigger installation of all Mollie modules.
-	 */
-	protected function installAllModules ()
-	{
-		// Load models.
-		$extensions = $this->getExtensionModel();
-		$this->load->model("user/user_group");
-
-		$user_id = $this->user->getGroupId();
-
-		foreach (MollieHelper::$MODULE_NAMES as $module_name)
-		{
-			// Install extension.
-			$extensions->install("payment", "mollie_" . $module_name);
-
-			// Set permissions.
-			$this->model_user_user_group->addPermission($user_id, "access", "extension/payment/mollie_" . $module_name);
-			$this->model_user_user_group->addPermission($user_id, "modify", "extension/payment/mollie_" . $module_name);
+		foreach ($this->getMultiStores() as $store) {
+			$this->model_setting_setting->editSetting("payment_mollie", array(
+				'payment_mollie_status' => true,
+			), $store['id']);
 		}
+
+		$this->installAllModules();
 	}
 
 	/**
@@ -124,28 +92,36 @@ class ControllerExtensionPaymentMollieBase extends Controller
 	}
 
 	/**
-	 * Trigger removal of all Mollie modules.
+	 * Trigger installation of all Mollie modules.
 	 */
-	protected function uninstallAllModules ()
+	protected function installAllModules()
 	{
-		$extensions = $this->getExtensionModel();
+		$this->load->model("setting/extension");
 
-		foreach (MollieHelper::$MODULE_NAMES as $module_name)
-		{
-			$extensions->uninstall("payment", "mollie_" . $module_name);
+		foreach (MollieHelper::$MODULE_NAMES as $module_name) {
+			$this->model_setting_extension->install('payment', 'mollie_' . $module_name);
 		}
 	}
 
 	/**
-	 * Get the extension installation handler.
-	 *
-	 * @return Model
+	 * Trigger removal of all Mollie modules.
 	 */
-	protected function getExtensionModel ()
+	protected function uninstallAllModules()
 	{
 		$this->load->model("setting/extension");
 
-		return $this->model_setting_extension;
+		foreach (MollieHelper::$MODULE_NAMES as $module_name) {
+			$this->model_setting_extension->uninstall('payment', 'mollie_' . $module_name);
+		}
+	}
+
+	/**
+	 * @param int $store The Store ID
+	 * @return Mollie_API_Client
+	 */
+	protected function getAPIClient($store = 0)
+	{
+		return MollieHelper::getAPIClientAdmin($this->data['stores'][$store]);
 	}
 
 	/**
@@ -153,7 +129,6 @@ class ControllerExtensionPaymentMollieBase extends Controller
 	 */
 	public function index ()
 	{
-		// Load essential models
 		$this->load->language("extension/payment/mollie");
 		$this->load->model("setting/setting");
 		$this->load->model("setting/store");
@@ -166,21 +141,23 @@ class ControllerExtensionPaymentMollieBase extends Controller
 		$this->retrieveMultiStoreConfigs();
 
 		// Call validate method on POST
-		
+
 		$doRedirect = false;
 		foreach($shops as $store)
 		{
 			if (($this->request->server['REQUEST_METHOD'] == "POST") && ($this->validate($store['id'])))
 			{
-				
+
 				$post = $this->request->post['stores'][$store['id']];
-				
+
 				foreach (MollieHelper::$MODULE_NAMES as $module_name)
 				{
 					$status = "payment_mollie_" . $module_name . "_status";
 
 					$post[$status] = (isset($post[$status]) && $post[$status] == "on") ? 1 : 0;
 				}
+
+				$post['payment_mollie_status'] = 1;
 
 				$this->model_setting_setting->editSetting("payment_mollie", $post, $store['id']);
 
@@ -198,7 +175,7 @@ class ControllerExtensionPaymentMollieBase extends Controller
 		}
 
 		// Set data for template
-		$data['api_check_url']          = $this->url->link("extension/payment/mollie_" . static::MODULE_NAME . '/validate_api_key', "user_token=" . $this->session->data['user_token'], "SSL");
+		$data['api_check_url']          = $this->url->link('extension/payment/mollie/validate_api_key', "user_token=" . $this->session->data['user_token'], "SSL");
 		$data['heading_title']          = $this->language->get("heading_title");
 		$data['title_global_options']   = $this->language->get("title_global_options");
 		$data['title_payment_status']   = $this->language->get("title_payment_status");
@@ -317,13 +294,13 @@ class ControllerExtensionPaymentMollieBase extends Controller
 		);
 
 		$data['breadcrumbs'][] = array(
-			"href"      => $this->url->link("extension/payment/mollie_" . static::MODULE_NAME, "user_token=" . $this->session->data['user_token'], "SSL"),
+			"href"      => $this->url->link("extension/payment/mollie", "user_token=" . $this->session->data['user_token'], "SSL"),
 			"text"      => $this->language->get("heading_title"),
 			"separator" => " :: ",
 		);
 
 		// Form action url
-		$data['action'] = $this->url->link("extension/payment/mollie_" . static::MODULE_NAME, "user_token=" . $this->session->data['user_token'], "SSL");
+		$data['action'] = $this->url->link("extension/payment/mollie", "user_token=" . $this->session->data['user_token'], "SSL");
 		$data['cancel'] = $this->url->link("marketplace/extension", "type=payment&user_token=" . $this->session->data['user_token'], "SSL");
 
 		// Load global settings. Some are prefixed with mollie_ideal_ for legacy reasons.
@@ -352,7 +329,7 @@ class ControllerExtensionPaymentMollieBase extends Controller
 				// Otherwise, attempt to get the setting from the database
 				else
 				{
-					// same as $this->config->get() 
+					// same as $this->config->get()
 					$stored_setting = isset($this->data['stores'][$store['id']][$setting_name]) ? $this->data['stores'][$store['id']][$setting_name] : null;
 
 					if($stored_setting === NULL && $default_value !== NULL)
@@ -389,7 +366,7 @@ class ControllerExtensionPaymentMollieBase extends Controller
 
 			$data['stores'][$store['id']]['payment_methods'] = array();
 
-		
+
 			foreach (MollieHelper::$MODULE_NAMES as $module_name)
 			{
 				$payment_method = array();
@@ -428,7 +405,7 @@ class ControllerExtensionPaymentMollieBase extends Controller
 
 				$data['stores'][$store['id']]['payment_methods'][$module_name] = $payment_method;
 			}
-			
+
 		}
 
 		$this->renderTemplate("extension/payment/mollie", $data, array(
@@ -493,7 +470,7 @@ class ControllerExtensionPaymentMollieBase extends Controller
 	 */
 	private function validate ($store = 0)
 	{
-		if (!$this->user->hasPermission("modify", "extension/payment/mollie_" . static::MODULE_NAME))
+		if (!$this->user->hasPermission("modify", "extension/payment/mollie"))
 		{
 			$this->error['warning'] = $this->language->get("error_permission");
 		}
@@ -507,7 +484,7 @@ class ControllerExtensionPaymentMollieBase extends Controller
 		{
 			$this->error[$store]['description'] = $this->language->get("error_description");
 		}
-		
+
 		return (count($this->error) == 0);
 	}
 
@@ -516,24 +493,16 @@ class ControllerExtensionPaymentMollieBase extends Controller
 		$need_files = array();
 
 		$mod_files  = array(
-			DIR_APPLICATION . "controller/extension/payment/mollie/base.php",
+			DIR_APPLICATION . "controller/extension/payment/mollie.php",
 			DIR_APPLICATION . "language/en-gb/extension/payment/mollie.php",
 			DIR_TEMPLATE . "extension/payment/mollie.twig",
 			DIR_CATALOG . "controller/extension/payment/mollie-api-client/",
-			DIR_CATALOG . "controller/extension/payment/mollie/base.php",
+			DIR_CATALOG . "controller/extension/payment/mollie.php",
 			DIR_CATALOG . "language/en-gb/extension/payment/mollie.php",
-			DIR_CATALOG . "model/extension/payment/mollie/base.php",
+			DIR_CATALOG . "model/extension/payment/mollie.php",
 			DIR_CATALOG . "view/theme/default/template/extension/payment/mollie_checkout_form.twig",
 			DIR_CATALOG . "view/theme/default/template/extension/payment/mollie_return.twig",
 		);
-
-		foreach (MollieHelper::$MODULE_NAMES as $module_name)
-		{
-			$mod_files[] = DIR_APPLICATION . "controller/extension/payment/mollie_" . $module_name . ".php";
-			$mod_files[] = DIR_APPLICATION . "language/en-gb/extension/payment/mollie_" . $module_name . ".php";
-			$mod_files[] = DIR_CATALOG . "controller/extension/payment/mollie_" . $module_name . ".php";
-			$mod_files[] = DIR_CATALOG . "model/extension/payment/mollie_" . $module_name . ".php";
-		}
 
 		foreach ($mod_files as $file)
 		{
@@ -671,6 +640,6 @@ class ControllerExtensionPaymentMollieBase extends Controller
 			}
 			$this->data['stores'][$store['id']] = $newArrray;
 		}
-		
+
 	}
 }

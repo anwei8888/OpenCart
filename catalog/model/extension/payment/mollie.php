@@ -42,7 +42,7 @@
  */
 require_once(dirname(DIR_SYSTEM) . "/catalog/controller/extension/payment/mollie/helper.php");
 
-class ModelExtensionPaymentMollieBase extends Model
+class ModelExtensionPaymentMollie extends Model
 {
 	// Current module name - should be overwritten by subclass using one of the values below.
 	const MODULE_NAME = NULL;
