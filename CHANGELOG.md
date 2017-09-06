@@ -2,6 +2,10 @@
 
 # Changelog #
 
+#### Changes in release 8.1.1
+  + Various code improvements
+  + Merged payment methods in payment extensions overview.
+
 #### Changes in release 8.1.0
   + Added 6 new payment methods (Gift cards)!
     + fashioncheque

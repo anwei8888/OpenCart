@@ -45,7 +45,7 @@
  *
  * @method render
  */
-require_once(dirname(DIR_SYSTEM) . "/catalog/controller/extension/payment/mollie/helper.php");
+require_once(dirname(DIR_SYSTEM) . "/catalog/model/extension/payment/mollie_helper.php");
 
 class ControllerExtensionPaymentMollie extends Controller
 {
