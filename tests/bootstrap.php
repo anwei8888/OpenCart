@@ -13,9 +13,9 @@ spl_autoload_register(function($className)
 	$project_dir = dirname(dirname(__FILE__));
 
 	$map = array(
-		"MollieHelper"                         => "$project_dir/catalog/model/extension/payment/mollie_helper.php",
-		"ControllerExtensionPaymentMollieBase" => "$project_dir/catalog/controller/extension/payment/mollie.php",
-		"ModelExtensionPaymentMollieBase"      => "$project_dir/catalog/model/extension/payment/mollie.php",
+		"MollieHelper"                     => "$project_dir/catalog/model/extension/payment/mollie_helper.php",
+		"ControllerExtensionPaymentMollie" => "$project_dir/catalog/controller/extension/payment/mollie.php",
+		"ModelExtensionPaymentMollie"      => "$project_dir/catalog/model/extension/payment/mollie.php",
 	);
 
 	if (isset($map[$className]))
