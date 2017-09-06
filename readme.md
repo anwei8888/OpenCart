@@ -6,7 +6,7 @@ voor **2.3.x.x** zie [deze branch](https://github.com/mollie/OpenCart/tree/openc
 
 voor **2.2.x.x**  en lager zie [deze branch](https://github.com/mollie/OpenCart/tree/opencart-2.2).
 
-# Installatie [![Build Status](https://travis-ci.org/mollie/OpenCart.png)](https://travis-ci.org/mollie/OpenCart) #
+# Installatie [![Build Status](https://travis-ci.org/mollie/OpenCart.png?branch=master)](https://travis-ci.org/mollie/OpenCart) #
 + Download op de [OpenCart Releases](https://github.com/mollie/OpenCart/releases)-pagina de nieuwste release.
 + Ga naar uw OpenCart AdminPanel (Beheerpagina).
 + Ga in het menu naar _Extentions_ >> _Installer_.
