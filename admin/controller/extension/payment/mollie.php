@@ -97,9 +97,13 @@ CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "mollie_payments` (
 	protected function installAllModules()
 	{
 		$this->load->model("setting/extension");
+		$this->load->model('user/user_group');
 
 		foreach (MollieHelper::$MODULE_NAMES as $module_name) {
 			$this->model_setting_extension->install('payment', 'mollie_' . $module_name);
+
+			$this->model_user_user_group->addPermission($this->user->getGroupId(), 'access', 'extension/payment/mollie_' . $module_name);
+			$this->model_user_user_group->addPermission($this->user->getGroupId(), 'modify', 'extension/payment/mollie_' . $module_name);
 		}
 	}
 
@@ -498,32 +502,36 @@ CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "mollie_payments` (
 			DIR_TEMPLATE . "extension/payment/mollie.twig",
 			DIR_CATALOG . "controller/extension/payment/mollie-api-client/",
 			DIR_CATALOG . "controller/extension/payment/mollie.php",
-			DIR_CATALOG . "language/en-gb/extension/payment/mollie.php",
+			DIR_CATALOG . "model/extension/payment/mollie_helper.php",
 			DIR_CATALOG . "model/extension/payment/mollie.php",
+			DIR_CATALOG . "language/en-gb/extension/payment/mollie.php",
 			DIR_CATALOG . "view/theme/default/template/extension/payment/mollie_checkout_form.twig",
 			DIR_CATALOG . "view/theme/default/template/extension/payment/mollie_return.twig",
 		);
 
-		foreach ($mod_files as $file)
-		{
+		foreach (MollieHelper::$MODULE_NAMES as $module) {
+			$mod_files[] = DIR_APPLICATION . 'controller/extension/payment/mollie_' . $module . '.php';
+			$mod_files[] = DIR_APPLICATION . 'language/en-gb/extension/payment/mollie_' . $module . '.php';
+			$mod_files[] = DIR_CATALOG . 'controller/extension/payment/mollie_' . $module . '.php';
+			$mod_files[] = DIR_CATALOG . 'model/extension/payment/mollie_' . $module . '.php';
+		}
+
+		foreach ($mod_files as $file) {
 			$realpath = realpath($file);
 
-			if (!file_exists($realpath))
-			{
+			if (!file_exists($realpath)) {
 				$need_files[] = '<span class="text-danger">' . $file . '</span>';
 			}
 		}
 
-		if (!MollieHelper::apiClientFound())
-		{
+		if (!MollieHelper::apiClientFound()) {
 			$need_files[] = '<span class="text-danger">'
 				. 'API client not found. Please make sure you have installed the module correctly. Use the download '
 				. 'button on the <a href="https://github.com/mollie/OpenCart/releases/latest" target="_blank">release page</a>'
 				. '</span>';
 		}
 
-		if (count($need_files) > 0)
-		{
+		if (count($need_files) > 0) {
 			return $need_files;
 		}
 
@@ -534,7 +542,7 @@ CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "mollie_payments` (
 	 * @param string|null
 	 * @return string
 	 */
-	protected function checkCommunicationStatus ($api_key = null)
+	protected function checkCommunicationStatus($api_key = null)
 	{
 		if (empty($api_key)) {
 			return '<span style="color:red">No API key provided. Please insert your API key.</span>';
@@ -579,15 +587,13 @@ CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "mollie_payments` (
 	 */
 	protected function renderTemplate ($template, $data, $common_children = array(), $echo = TRUE)
 	{
-		foreach ($common_children as $child)
-		{
+		foreach ($common_children as $child) {
 			$data[$child] = $this->load->controller("common/" . $child);
 		}
 
 		$html = $this->load->view($template, $data);
 
-		if ($echo)
-		{
+		if ($echo) {
 			return $this->response->setOutput($html);
 		}
 

@@ -3,5 +3,4 @@ require_once(dirname(__FILE__) . "/mollie.php");
 
 class ControllerExtensionPaymentMollieBankTransfer extends ControllerExtensionPaymentMollie
 {
-	const MODULE_NAME = MollieHelper::MODULE_NAME_BANKTRANSFER;
 }
